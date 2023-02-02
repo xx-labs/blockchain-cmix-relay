@@ -1,0 +1,4 @@
+# Ignore state, logs and config files
+state
+relay*
+networks.json

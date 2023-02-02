@@ -1,0 +1,25 @@
+{
+    "bitcoin": [
+        {
+            "name": "mainnet",
+            "endpoints": [
+                "https://btc.rpc.io"
+            ]
+        }
+    ],
+    "ethereum": [
+        {
+            "name": "mainnet",
+            "endpoints": [
+                "https://mainnet.infura.io",
+                "https://eth.rpc.io"
+            ]
+        },
+        {
+            "name": "goerli",
+            "endpoints": [
+                "https://eth-goerli.rpc.io"
+            ]
+        }
+    ]
+}
