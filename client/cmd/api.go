@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,7 +63,7 @@ func (a *Api) Connect() error {
 	a.client.Start()
 
 	// Get supported networks from server
-	resp, err := a.doRequest(restlike.Get, "/networks", nil)
+	resp, _, err := a.doRequest(restlike.Get, "/networks", nil)
 	if err != nil {
 		errMsg := fmt.Sprintf("Couldn't get supported networks: %v", err)
 		jww.ERROR.Printf("[%s] %v", logPrefix, errMsg)
@@ -110,7 +111,8 @@ func (a *Api) Networks() []string {
 // ---------------------------- //
 // Do a Request over cMix to the given network
 // with the given data
-func (a *Api) Request(network string, data []byte) ([]byte, error) {
+// Returns response data, code and possible error
+func (a *Api) Request(network string, data []byte) ([]byte, int, error) {
 	return a.doRequest(restlike.Post, network, data)
 }
 
@@ -123,7 +125,7 @@ func (a *Api) doRequest(
 	method restlike.Method,
 	uri string,
 	data []byte,
-) ([]byte, error) {
+) ([]byte, int, error) {
 	// Parse URI
 	endpoint := parseCustomUri(uri)
 	var headers []byte = nil
@@ -140,7 +142,7 @@ func (a *Api) doRequest(
 	// (except for when getting supported networks)
 	if _, ok := a.supportedNetworks[uri]; !ok && uri != "/networks" {
 		jww.ERROR.Printf("[%s] Network %v is not supported", logPrefix, uri)
-		return nil, errors.New("unsupported network")
+		return nil, 400, errors.New("unsupported network")
 	}
 
 	// Build request
@@ -166,16 +168,22 @@ func (a *Api) doRequest(
 	// Bail if can't do request in specified number of retries
 	if err != nil {
 		jww.ERROR.Printf("[%s] Failed to send request after %v retries, bailing", logPrefix, retries)
-		return nil, errors.New("request exhausted number of retries")
+		return nil, 500, errors.New("request exhausted number of retries")
+	}
+
+	// Parse code from headers
+	code := 500
+	if response.Headers != nil && len(response.Headers.Headers) >= 2 {
+		code = int(binary.LittleEndian.Uint16(response.Headers.Headers))
 	}
 
 	// Parse response error
 	if response.Error != "" {
 		errMsg := fmt.Sprintf("Response error: %v", response.Error)
 		jww.ERROR.Printf("[%s] %v", logPrefix, errMsg)
-		return nil, errors.New(errMsg)
+		return nil, code, errors.New(errMsg)
 	} else {
-		return response.Content, nil
+		return response.Content, code, nil
 	}
 }
 

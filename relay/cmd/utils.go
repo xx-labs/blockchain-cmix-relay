@@ -12,7 +12,7 @@ import (
 )
 
 // Execute the query to one of the endpoints, randomly selected
-func doQuery(endpoints []string, data []byte) ([]byte, error) {
+func doQuery(endpoints []string, data []byte) ([]byte, int, error) {
 	// Get endpoint
 	endpoint := endpoints[0]
 	if len(endpoints) > 1 {
@@ -20,8 +20,7 @@ func doQuery(endpoints []string, data []byte) ([]byte, error) {
 	}
 
 	// Query
-	body, _, err := queryJsonRpc(endpoint, data)
-	return body, err
+	return queryJsonRpc(endpoint, data)
 }
 
 var testRequest = "{\"id\":\"1\", \"jsonrpc\":\"2.0\", \"method\": \"\", \"params\":[]}"

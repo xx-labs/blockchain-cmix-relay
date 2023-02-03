@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	jww "github.com/spf13/jwalterweatherman"
@@ -52,7 +53,9 @@ func (n *Network) Callback(request *restlike.Message) *restlike.Message {
 
 	// Response
 	response := &restlike.Message{}
-	response.Headers = &restlike.Headers{}
+	// Start with code 400 (Bad Request)
+	code := 400
+	response.Headers = &restlike.Headers{Headers: make([]byte, 2)}
 	response.Content = nil
 	response.Error = ""
 
@@ -82,15 +85,19 @@ func (n *Network) Callback(request *restlike.Message) *restlike.Message {
 
 	if response.Error == "" {
 		// Do JSON-RPC query
-		data, err := doQuery(endpoints, request.Content)
+		var data []byte
+		var err error
+		data, code, err = doQuery(endpoints, request.Content)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error in JSON-RPC query: %v", err)
 			jww.WARN.Printf("[%s %s] %s", logPrefix, n.uri, errMsg)
 			response.Error = errMsg
 		} else {
 			response.Content = data
-			jww.INFO.Printf("[%s %s] Response: %v", logPrefix, n.uri, string(data))
+			jww.INFO.Printf("[%s %s] Code (%v), Response: %v", logPrefix, n.uri, code, string(data))
 		}
 	}
+	// Place response code in headers
+	binary.LittleEndian.PutUint16(response.Headers.Headers, uint16(code))
 	return response
 }
