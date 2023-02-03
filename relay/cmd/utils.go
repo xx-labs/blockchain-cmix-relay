@@ -34,7 +34,7 @@ func testConnectJsonRpc(url string) bool {
 		valid = false
 	} else {
 		if code != 200 && code != 400 {
-			jww.INFO.Printf("[RELAY] Endpoint %v returned code %v", url, code)
+			jww.INFO.Printf("[%s] Endpoint %v returned code %v", logPrefix, url, code)
 			valid = false
 		}
 	}
@@ -45,7 +45,7 @@ func testConnectJsonRpc(url string) bool {
 func queryJsonRpc(url string, data []byte) ([]byte, int, error) {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
-		jww.ERROR.Printf("[RELAY] Error creating request to query %v: %v", url, err)
+		jww.ERROR.Printf("[%s] Error creating request to query %v: %v", logPrefix, url, err)
 		return nil, 500, err
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -53,7 +53,7 @@ func queryJsonRpc(url string, data []byte) ([]byte, int, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		jww.ERROR.Printf("[RELAY] Error performing request to %v: %v", url, err)
+		jww.ERROR.Printf("[%s] Error performing request to %v: %v", logPrefix, url, err)
 		return nil, 500, err
 	}
 	defer resp.Body.Close()
@@ -65,7 +65,7 @@ func queryJsonRpc(url string, data []byte) ([]byte, int, error) {
 func getEndpointFromHeaders(headers *restlike.Headers) string {
 	// 1. Check if headers are empty
 	if headers == nil || len(headers.Headers) == 0 {
-		jww.INFO.Print("[RELAY] Empty headers in custom URI request")
+		jww.INFO.Printf("[%s] Empty headers in custom URI request", logPrefix)
 		return ""
 	}
 
@@ -82,11 +82,11 @@ func getEndpointFromHeaders(headers *restlike.Headers) string {
 func isValidHTTPSURL(input string) bool {
 	u, err := url.Parse(input)
 	if err != nil {
-		jww.INFO.Print("[RELAY] Couldn't parse URL from headers")
+		jww.INFO.Printf("[%s] Couldn't parse URL from headers", logPrefix)
 		return false
 	}
 	if u.Scheme != "https" {
-		jww.INFO.Print("[RELAY] URL is not HTTPS")
+		jww.INFO.Printf("[%s] URL is not HTTPS", logPrefix)
 		return false
 	}
 	return true

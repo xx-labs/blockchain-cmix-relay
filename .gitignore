@@ -1,4 +1,11 @@
-# Ignore state, logs and config files
-state
-relay*
-networks.json
+# Ignore state, logs and contact files
+**/state
+**/*.log
+**/*.xxc
+
+# Config file
+relay/networks.json
+
+# Binaries
+client/client
+relay/relay

@@ -38,28 +38,26 @@ func LoadServer() *Server {
 
 	// Create an E2E client
 	params := xxdk.GetDefaultE2EParams()
-	user, err := xxdk.Login(net, xxdk.DefaultAuthCallbacks{},
-		identity, params)
+	user, err := xxdk.Login(net, xxdk.DefaultAuthCallbacks{}, identity, params)
 	if err != nil {
-		jww.FATAL.Panicf("[RELAY] Unable to Login: %+v", err)
+		jww.FATAL.Panicf("[%s] Unable to Login: %+v", logPrefix, err)
 	}
 
 	// Pull the reception identity information
 	dhKeyPrivateKey, err := identity.GetDHKeyPrivate()
 	if err != nil {
-		jww.FATAL.Panicf("[RELAY] Failed to get DH private key from identity: %+v", err)
+		jww.FATAL.Panicf("[%s] Failed to get DH private key from identity: %+v", logPrefix, err)
 	}
 
 	// Get the group
 	grp, err := identity.GetGroup()
 	if err != nil {
-		jww.FATAL.Panicf("[RELAY] Failed to get group from identity: %+v", err)
+		jww.FATAL.Panicf("[%s] Failed to get group from identity: %+v", logPrefix, err)
 	}
 
 	// Initialize the server
-	restServer := single.NewServer(identity.ID, dhKeyPrivateKey,
-		grp, user.GetCmix())
-	jww.INFO.Printf("[RELAY] Initialized single use REST Server")
+	restServer := single.NewServer(identity.ID, dhKeyPrivateKey, grp, user.GetCmix())
+	jww.INFO.Printf("[%s] Initialized single use REST Server", logPrefix)
 
 	return &Server{
 		restServer,
@@ -82,7 +80,7 @@ func (s *Server) Start() {
 	networkFollowerTimeout := 5 * time.Second
 	err := s.user.StartNetworkFollower(networkFollowerTimeout)
 	if err != nil {
-		jww.FATAL.Panicf("[RELAY] Failed to start cMix network follower: %+v", err)
+		jww.FATAL.Panicf("[%s] Failed to start cMix network follower: %+v", logPrefix, err)
 	}
 
 	// Create a tracker channel to be notified of network changes
@@ -102,10 +100,10 @@ func (s *Server) Start() {
 		select {
 		case isConnected = <-connected:
 		case <-timeoutTimer.C:
-			jww.FATAL.Panicf("[RELAY] Timeout on starting REST Server")
+			jww.FATAL.Panicf("[%s] Timeout on starting REST Server", logPrefix)
 		}
 	}
-	jww.INFO.Printf("[RELAY] Started REST Server")
+	jww.INFO.Printf("[%s] Started REST Server", logPrefix)
 }
 
 // ---------------------------- //
@@ -114,14 +112,14 @@ func (s *Server) Stop() {
 	// Stop cMix network follower
 	err := s.user.StopNetworkFollower()
 	if err != nil {
-		jww.ERROR.Printf("[RELAY] Failed to stop cMix network follower: %+v", err)
+		jww.ERROR.Printf("[%s] Failed to stop cMix network follower: %+v", logPrefix, err)
 	} else {
-		jww.INFO.Printf("[RELAY] Stopped cMix network follower")
+		jww.INFO.Printf("[%s] Stopped cMix network follower", logPrefix)
 	}
 
 	// Close REST server
 	s.restServer.Close()
-	jww.INFO.Printf("[RELAY] Stopped REST Server")
+	jww.INFO.Printf("[%s] Stopped REST Server", logPrefix)
 }
 
 // ---------------------------- //
@@ -129,41 +127,41 @@ func (s *Server) Stop() {
 // ---------------------------- //
 
 func newServer(initialize bool) (*xxdk.Cmix, xxdk.ReceptionIdentity) {
-	_, err := os.Stat(statePath)
 	// Initialize state if requested
 	// Overwrites existing state if found at provided path
+	_, err := os.Stat(statePath)
 	if initialize {
 		if err == nil {
-			jww.INFO.Printf("[RELAY] Removing existing state at %v", statePath)
+			jww.INFO.Printf("[%s] Removing existing state at %v", logPrefix, statePath)
 			err = os.RemoveAll(statePath)
 			if err != nil {
-				jww.FATAL.Panicf("[RELAY] Error removing existing state at %v", statePath)
+				jww.FATAL.Panicf("[%s] Error removing existing state at %v", logPrefix, statePath)
 			}
 		}
-		jww.INFO.Printf("[RELAY] Initializing state at %v", statePath)
+		jww.INFO.Printf("[%s] Initializing state at %v", logPrefix, statePath)
 		// Retrieve NDF
 		cert, err := os.ReadFile(cert)
 		if err != nil {
-			jww.FATAL.Panicf("[RELAY] Failed to read certificate: %v", err)
+			jww.FATAL.Panicf("[%s] Failed to read certificate: %v", logPrefix, err)
 		}
 
 		ndfJSON, err := xxdk.DownloadAndVerifySignedNdfWithUrl(ndfUrl, string(cert))
 		if err != nil {
-			jww.FATAL.Panicf("[RELAY] Failed to download NDF: %+v", err)
+			jww.FATAL.Panicf("[%s] Failed to download NDF: %+v", logPrefix, err)
 		}
 
 		// Initialize the state using the state file
 		err = xxdk.NewCmix(string(ndfJSON), statePath, []byte(statePassword), "")
 		if err != nil {
-			jww.FATAL.Panicf("[RELAY] Failed to initialize state: %+v", err)
+			jww.FATAL.Panicf("[%s] Failed to initialize state: %+v", logPrefix, err)
 		}
 	}
 
-	// Login with the same sessionPath and sessionPass used to call NewClient()
+	// Load cMix
 	net, err := xxdk.LoadCmix(statePath, []byte(statePassword),
 		xxdk.GetDefaultCMixParams())
 	if err != nil {
-		jww.FATAL.Panicf("[RELAY] Failed to load state: %+v", err)
+		jww.FATAL.Panicf("[%s] Failed to load state: %+v", logPrefix, err)
 	}
 
 	// Get reception identity (automatically created if one does not exist)
@@ -174,14 +172,14 @@ func newServer(initialize bool) (*xxdk.Cmix, xxdk.ReceptionIdentity) {
 			// If no extant xxdk.ReceptionIdentity, generate and store a new one
 			identity, err = xxdk.MakeReceptionIdentity(net)
 			if err != nil {
-				jww.FATAL.Panicf("[RELAY] Failed to generate reception identity: %+v", err)
+				jww.FATAL.Panicf("[%s] Failed to generate reception identity: %+v", logPrefix, err)
 			}
 			err = xxdk.StoreReceptionIdentity(identityStorageKey, identity, net)
 			if err != nil {
-				jww.FATAL.Panicf("[RELAY] Failed to store new reception identity: %+v", err)
+				jww.FATAL.Panicf("[%s] Failed to store new reception identity: %+v", logPrefix, err)
 			}
 		} else {
-			jww.FATAL.Panicf("[RELAY] Failed to load reception identity: %+v", err)
+			jww.FATAL.Panicf("[%s] Failed to load reception identity: %+v", logPrefix, err)
 		}
 	}
 
@@ -189,7 +187,7 @@ func newServer(initialize bool) (*xxdk.Cmix, xxdk.ReceptionIdentity) {
 	if initialize {
 		err = utils.WriteFileDef(outputFile, identity.GetContact().Marshal())
 		if err != nil {
-			jww.FATAL.Panicf("[RELAY] Failed writing contact file to %v: %+v", outputFile, err)
+			jww.FATAL.Panicf("[%s] Failed writing contact file to %v: %+v", logPrefix, outputFile, err)
 		}
 	}
 

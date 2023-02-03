@@ -27,7 +27,7 @@ func NewManager(
 ) *Manager {
 	// Create Manager
 	m := &Manager{
-		uri:       "networks",
+		uri:       "/networks",
 		endpoints: endpoints,
 	}
 	// Initialize networks
@@ -64,9 +64,9 @@ func (m *Manager) Reload(networks map[string][]NetworkConfig) {
 // to process a restlike request
 // This function returns a list of the supported networks
 func (m *Manager) Callback(request *restlike.Message) *restlike.Message {
-	jww.INFO.Printf("[RELAY %v] Request received over cMix: %v", m.uri, request)
+	jww.INFO.Printf("[%s %s] Request received over cMix: %v", logPrefix, m.uri, request)
 	if request.Uri != m.uri {
-		jww.WARN.Printf("[RELAY %v] Received URI (%v) doesn't match for this query!", m.uri, request.Uri)
+		jww.WARN.Printf("[%s %s] Received URI (%v) doesn't match for this query!", logPrefix, m.uri, request.Uri)
 	}
 
 	// Response
@@ -83,10 +83,10 @@ func (m *Manager) Callback(request *restlike.Message) *restlike.Message {
 	// Convert to JSON data
 	data, err := json.Marshal(networks)
 	if err != nil {
-		jww.ERROR.Printf("[RELAY %v] Error marshalling JSON data: %v", m.uri, err)
+		jww.ERROR.Printf("[%s %s] Error marshalling JSON data: %v", logPrefix, m.uri, err)
 		response.Error = "Internal server error"
 	} else {
-		jww.INFO.Printf("[RELAY %v] Response: %v", m.uri, string(data))
+		jww.INFO.Printf("[%s %s] Response: %v", logPrefix, m.uri, string(data))
 		response.Content = data
 	}
 	return response
@@ -102,34 +102,34 @@ func (m *Manager) initNetworks(networks map[string][]NetworkConfig) {
 	// supported network
 	for net, subnets := range networks {
 		for _, n := range subnets {
-			uri := net + "/" + n.Name
+			uri := "/" + net + "/" + n.Name
 			// Test endpoints
 			endpoints := make([]string, 0, len(n.Endpoints))
 			for _, url := range n.Endpoints {
 				if testConnectJsonRpc(url) {
 					endpoints = append(endpoints, url)
 				} else {
-					jww.INFO.Printf("[RELAY] Network %v endpoint %v is unreachable, will be ignored", uri, url)
+					jww.INFO.Printf("[%s] Network %v endpoint %v is unreachable, will be ignored", logPrefix, uri, url)
 				}
 			}
 			if len(endpoints) == 0 {
-				jww.WARN.Printf("[RELAY] Network %v has no valid endpoints, not supporting this network!", uri)
+				jww.WARN.Printf("[%s] Network %v has no valid endpoints, not supporting this network!", logPrefix, uri)
 			} else {
 				network := NewNetwork(uri, endpoints)
 				m.networks = append(m.networks, network)
-				jww.INFO.Printf("[RELAY] Creating network: %v", uri)
+				jww.INFO.Printf("[%s] Creating network: %v", logPrefix, uri)
 				m.endpoints.Add(restlike.URI(uri), restlike.Post, network.Callback)
 			}
 		}
 	}
 
 	// Add custom network
-	custom := NewNetwork("custom", []string{})
+	custom := NewNetwork("/custom", []string{})
 	m.networks = append(m.networks, custom)
-	jww.INFO.Print("[RELAY] Creating network: custom")
-	m.endpoints.Add(restlike.URI("custom"), restlike.Post, custom.Callback)
+	jww.INFO.Printf("[%s] Creating network: /custom", logPrefix)
+	m.endpoints.Add(restlike.URI("/custom"), restlike.Post, custom.Callback)
 
 	// Register manager endpoint to get supported networks
-	jww.INFO.Print("[RELAY] Creating endpoint: networks")
+	jww.INFO.Printf("[%s] Creating endpoint: /networks", logPrefix)
 	m.endpoints.Add(restlike.URI(m.uri), restlike.Get, m.Callback)
 }
