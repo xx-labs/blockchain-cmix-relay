@@ -40,6 +40,9 @@ var rootCmd = &cobra.Command{
 	Long:  `Relay provides a REST Server that handles client requests over cMix to query/interact with supported blockchain networks`,
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Initialize logging
+		initLog()
+
 		// Load REST server
 		server := LoadServer()
 
@@ -94,8 +97,6 @@ func init() {
 	rootCmd.PersistentFlags().UintVarP(&logLevel, "logLevel", "l", 0, "Level of debugging to print (0 = info, 1 = debug, >1 = trace).")
 	rootCmd.PersistentFlags().StringVarP(&logPath, "logFile", "f", "relay.log", "Path to log file")
 	rootCmd.Flags().StringVarP(&logPrefix, "logPrefix", "", "RELAY", "Logging prefix")
-	// Initialize logging
-	initLog()
 }
 
 // initLog initializes logging thresholds and the log path.

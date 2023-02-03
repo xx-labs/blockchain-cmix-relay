@@ -39,6 +39,9 @@ var rootCmd = &cobra.Command{
 	Long:  `Client provides an HTTP server that proxies JSON-RPC requests over cMix to query/interact with supported blockchain networks`,
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Initialize logging
+		initLog()
+
 		// Create API
 		api := NewApi(contactFile)
 
@@ -96,8 +99,6 @@ func init() {
 	rootCmd.Flags().UintVarP(&logLevel, "logLevel", "l", 0, "Level of debugging to print (0 = info, 1 = debug, >1 = trace).")
 	rootCmd.Flags().StringVarP(&logPath, "logFile", "f", "client.log", "Path to log file")
 	rootCmd.Flags().StringVarP(&logPrefix, "logPrefix", "", "RELAY", "Logging prefix")
-	// Initialize logging
-	initLog()
 }
 
 // initLog initializes logging thresholds and the log path.

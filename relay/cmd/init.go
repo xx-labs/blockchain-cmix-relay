@@ -15,6 +15,9 @@ var initCmd = &cobra.Command{
 	Short: "Initialize the REST server",
 	Long:  `This command initializes a new cMix client, stores the state information, and outputs the contact information to a file`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Initialize logging
+		initLog()
+
 		// Initialize REST server
 		InitializeServer()
 	},
