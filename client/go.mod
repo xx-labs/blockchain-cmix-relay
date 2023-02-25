@@ -5,8 +5,8 @@ go 1.19
 require (
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/jwalterweatherman v1.1.0
-	gitlab.com/elixxir/client/v4 v4.4.4
-	gitlab.com/elixxir/crypto v0.0.7-0.20230113231934-c833bffda448
+	gitlab.com/elixxir/client/v4 v4.3.12-0.20230205175404-82451a1cd6f3
+	gitlab.com/elixxir/crypto v0.0.7-0.20230124220743-2a897bc01c59
 )
 
 require (
@@ -21,8 +21,10 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
-	github.com/klauspost/compress v1.11.7 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.0 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -35,11 +37,11 @@ require (
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	github.com/zeebo/blake3 v0.2.3 // indirect
 	gitlab.com/elixxir/bloomfilter v0.0.0-20211222005329-7d931ceead6f // indirect
-	gitlab.com/elixxir/comms v0.0.4-0.20230113232310-712ff1217195 // indirect
+	gitlab.com/elixxir/comms v0.0.4-0.20230116232020-39f76a2aeccc // indirect
 	gitlab.com/elixxir/ekv v0.2.1 // indirect
 	gitlab.com/elixxir/primitives v0.0.3-0.20230109222259-f62b2a90b62c // indirect
 	gitlab.com/xx_network/comms v0.0.4-0.20230113193654-a3a18c6bbb90 // indirect
-	gitlab.com/xx_network/crypto v0.0.5-0.20230113190331-06f2eb12b97f // indirect
+	gitlab.com/xx_network/crypto v0.0.5-0.20230124215920-951bed503c49 // indirect
 	gitlab.com/xx_network/primitives v0.0.4-0.20221219230308-4b5550a9247d // indirect
 	gitlab.com/xx_network/ring v0.0.3-0.20220902183151-a7d3b15bc981 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
