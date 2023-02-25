@@ -1,11 +1,10 @@
-package cmd
+package api
 
 import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	jww "github.com/spf13/jwalterweatherman"
@@ -13,11 +12,41 @@ import (
 	"gitlab.com/elixxir/crypto/contact"
 )
 
+// ---------------------------- //
+// Api wraps the cMix Client
+// and performs requests
+// to a Relay Server with the
+// specified contact info
 type Api struct {
-	client            *Client
+	client            *client
 	serverContact     contact.Contact
 	networks          []string
 	supportedNetworks map[string]struct{}
+	logPrefix         string
+	retries           int
+}
+
+// Configuration variables for the Api
+type Config struct {
+	// Logging
+	LogPrefix string
+
+	// Number of retries for each request
+	Retries int
+
+	// cMix client
+	Cert          string
+	NdfUrl        string
+	StatePath     string
+	StatePassword string
+
+	// Server contact
+	// Either the filepath needs to be passed
+	// to the API
+	ContactFile string
+	// or the contact information
+	// (if caller uses LoadContactFile before)
+	Contact contact.Contact
 }
 
 // ---------------------------- //
@@ -27,27 +56,24 @@ type Api struct {
 // contact file
 // Panics on failure to open and parse
 // contact data
-func NewApi(contactFile string) *Api {
-	// Load server contact from file
-	contactData, err := os.ReadFile(contactFile)
-	if err != nil {
-		jww.FATAL.Panicf("[%s] Failed to read server contact file: %+v", logPrefix, err)
-	}
-
-	// Unmarshal contact data
-	serverContact, err := contact.Unmarshal(contactData)
-	if err != nil {
-		jww.FATAL.Panicf("[%s] Failed to get server contact data: %+v", logPrefix, err)
+func NewApi(c Config) *Api {
+	var serverContact contact.Contact
+	if c.ContactFile != "" {
+		serverContact = LoadContactFile(c.ContactFile)
+	} else {
+		serverContact = c.Contact
 	}
 
 	// Create cMix client
-	client := NewClient()
+	client := newClient(c)
 
 	return &Api{
 		client:            client,
 		serverContact:     serverContact,
 		networks:          nil,
 		supportedNetworks: nil,
+		logPrefix:         c.LogPrefix,
+		retries:           c.Retries,
 	}
 }
 
@@ -60,19 +86,19 @@ func NewApi(contactFile string) *Api {
 // supported networks
 func (a *Api) Connect() error {
 	// Start cMix client
-	a.client.Start()
+	a.client.start()
 
 	// Get supported networks from server
 	resp, _, err := a.doRequest(restlike.Get, "/networks", nil)
 	if err != nil {
 		errMsg := fmt.Sprintf("Couldn't get supported networks: %v", err)
-		jww.ERROR.Printf("[%s] %v", logPrefix, errMsg)
+		jww.ERROR.Printf("[%s] %v", a.logPrefix, errMsg)
 		return errors.New(errMsg)
 	}
 	err = json.Unmarshal(resp, &a.networks)
 	if err != nil {
 		errMsg := fmt.Sprintf("Couldn't get supported networks: %v", err)
-		jww.ERROR.Printf("[%s] %v", logPrefix, errMsg)
+		jww.ERROR.Printf("[%s] %v", a.logPrefix, errMsg)
 		return errors.New(errMsg)
 	}
 
@@ -90,7 +116,7 @@ func (a *Api) Connect() error {
 // Clears supported networks
 func (a *Api) Disconnect() {
 	// Stop cMix Client
-	a.client.Stop()
+	a.client.stop()
 
 	// Clear supported networks
 	a.networks = nil
@@ -141,7 +167,7 @@ func (a *Api) doRequest(
 	// Make sure the network is supported
 	// (except for when getting supported networks)
 	if _, ok := a.supportedNetworks[uri]; !ok && uri != "/networks" {
-		jww.ERROR.Printf("[%s] Network %v is not supported", logPrefix, uri)
+		jww.ERROR.Printf("[%s] Network %v is not supported", a.logPrefix, uri)
 		return nil, 400, errors.New("unsupported network")
 	}
 
@@ -156,18 +182,18 @@ func (a *Api) doRequest(
 	// Do request over cMix
 	// Repeat for number of retries
 	tries := 1
-	response, err := a.client.Request(a.serverContact, request)
+	response, err := a.client.request(a.serverContact, request)
 	for err != nil {
-		response, err = a.client.Request(a.serverContact, request)
+		response, err = a.client.request(a.serverContact, request)
 		tries++
-		if tries > retries {
+		if tries > a.retries {
 			break
 		}
 	}
 
 	// Bail if can't do request in specified number of retries
 	if err != nil {
-		jww.ERROR.Printf("[%s] Failed to send request after %v retries, bailing", logPrefix, retries)
+		jww.ERROR.Printf("[%s] Failed to send request after %v retries, bailing", a.logPrefix, a.retries)
 		return nil, 500, errors.New("request exhausted number of retries")
 	}
 
@@ -180,7 +206,7 @@ func (a *Api) doRequest(
 	// Parse response error
 	if response.Error != "" {
 		errMsg := fmt.Sprintf("Response error: %v", response.Error)
-		jww.ERROR.Printf("[%s] %v", logPrefix, errMsg)
+		jww.ERROR.Printf("[%s] %v", a.logPrefix, errMsg)
 		return nil, code, errors.New(errMsg)
 	} else {
 		return response.Content, code, nil
