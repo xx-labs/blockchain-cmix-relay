@@ -1,4 +1,4 @@
-module github.com/xx-labs/blockchain-cmix-relay/server
+module github.com/xx-labs/blockchain-cmix-relay/relay
 
 go 1.19
 
