@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
@@ -66,8 +68,21 @@ var rootCmd = &cobra.Command{
 		// Create HTTP proxy server
 		server := api.NewHttpProxy(apiInstance, port, logPrefix)
 
-		// Start server (blocking)
-		server.Start()
+		// Start server
+		go server.Start()
+
+		// Handle shutdown
+		done := make(chan os.Signal, 1)
+		signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+		// Block until signal
+		<-done
+
+		// Stop HTTP server
+		server.Stop()
+
+		// Disconnect API
+		apiInstance.Disconnect()
 	},
 }
 

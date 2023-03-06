@@ -1,9 +1,11 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	jww "github.com/spf13/jwalterweatherman"
 )
@@ -12,10 +14,16 @@ type HttpProxy struct {
 	api       *Api
 	port      int
 	logPrefix string
+	srv       *http.Server
 }
 
 func NewHttpProxy(api *Api, port int, logPrefix string) *HttpProxy {
-	return &HttpProxy{api, port, logPrefix}
+	hp := &HttpProxy{api, port, logPrefix, nil}
+	hp.srv = &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: hp,
+	}
+	return hp
 }
 
 // Start the HTTP proxy server
@@ -23,11 +31,25 @@ func NewHttpProxy(api *Api, port int, logPrefix string) *HttpProxy {
 // Panics on error different than server closed
 func (hp *HttpProxy) Start() {
 	jww.INFO.Printf("[%s] Starting HTTP server on port: %v", hp.logPrefix, hp.port)
-	if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%v", hp.port), hp); err != http.ErrServerClosed {
+	if err := hp.srv.ListenAndServe(); err != http.ErrServerClosed {
 		jww.FATAL.Panicf("[%s] Error starting HTTP server", hp.logPrefix)
 	}
 }
 
+// Stop the Http server
+func (hp *HttpProxy) Stop() {
+	jww.INFO.Printf("[%s] Stopping HTTP server on port: %v", hp.logPrefix, hp.port)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer func() {
+		cancel()
+	}()
+	if err := hp.srv.Shutdown(ctx); err != nil {
+		jww.FATAL.Panicf("[%s] Error stopping HTTP server: %v", hp.logPrefix, err)
+	}
+	jww.INFO.Printf("[%s] HTTP stopped", hp.logPrefix)
+}
+
+// Handle requests
 func (hp *HttpProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Body != nil {
 		data, err := io.ReadAll(r.Body)
