@@ -32,7 +32,7 @@ func testConnectJsonRpc(url string) bool {
 	if err != nil {
 		valid = false
 	} else {
-		if code != 200 && code != 400 && code != 403 {
+		if code != 200 && code != 400 && code != 403 && code != 404 {
 			jww.INFO.Printf("[%s] Endpoint %v returned code %v", logPrefix, url, code)
 			valid = false
 		}
