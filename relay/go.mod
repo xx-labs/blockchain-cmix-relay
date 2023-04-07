@@ -7,12 +7,13 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/jwalterweatherman v1.1.0
 	github.com/spf13/viper v1.12.0
-	gitlab.com/elixxir/client/v4 v4.3.12-0.20230205175404-82451a1cd6f3
-	gitlab.com/xx_network/primitives v0.0.4-0.20221219230308-4b5550a9247d
+	gitlab.com/elixxir/client/v4 v4.6.2-0.20230407173222-f2352c0ca7e4
+	gitlab.com/xx_network/primitives v0.0.4-0.20230310205521-c440e68e34c4
 )
 
 require (
-	git.xx.network/elixxir/grpc-web-go-client v0.0.0-20221221204132-2ed1fec765f1 // indirect
+	filippo.io/edwards25519 v1.0.0 // indirect
+	git.xx.network/elixxir/grpc-web-go-client v0.0.0-20230214175953-5b5a8c33d28a // indirect
 	github.com/badoux/checkmail v1.2.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cloudflare/circl v1.2.0 // indirect
@@ -44,13 +45,13 @@ require (
 	github.com/ttacon/libphonenumber v1.2.1 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	github.com/zeebo/blake3 v0.2.3 // indirect
-	gitlab.com/elixxir/bloomfilter v0.0.0-20211222005329-7d931ceead6f // indirect
-	gitlab.com/elixxir/comms v0.0.4-0.20230116232020-39f76a2aeccc // indirect
-	gitlab.com/elixxir/crypto v0.0.7-0.20230124220743-2a897bc01c59 // indirect
+	gitlab.com/elixxir/bloomfilter v0.0.0-20230315224936-a4459418f300 // indirect
+	gitlab.com/elixxir/comms v0.0.4-0.20230310205528-f06faa0d2f0b // indirect
+	gitlab.com/elixxir/crypto v0.0.7-0.20230322175717-4a3b5a24bdf4 // indirect
 	gitlab.com/elixxir/ekv v0.2.1 // indirect
-	gitlab.com/elixxir/primitives v0.0.3-0.20230109222259-f62b2a90b62c // indirect
-	gitlab.com/xx_network/comms v0.0.4-0.20230113193654-a3a18c6bbb90 // indirect
-	gitlab.com/xx_network/crypto v0.0.5-0.20230124215920-951bed503c49 // indirect
+	gitlab.com/elixxir/primitives v0.0.3-0.20230214180039-9a25e2d3969c // indirect
+	gitlab.com/xx_network/comms v0.0.4-0.20230214180029-5387fb85736d // indirect
+	gitlab.com/xx_network/crypto v0.0.5-0.20230214003943-8a09396e95dd // indirect
 	gitlab.com/xx_network/ring v0.0.3-0.20220902183151-a7d3b15bc981 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
