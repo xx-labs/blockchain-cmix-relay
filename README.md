@@ -10,9 +10,9 @@ The xx labs team is working on a desktop application called `Proxxy` that makes 
 
 While this is not complete, the command line `client` application from this repository is the only way to communicate with a `relay` server.
 
-However, the xx labs teams will soon deploy a relay server for testing purposes, with support for various testnets. The `relay` contact file will be uploaded in this repository when this happens.
+However, the xx labs teams has deployed a relay server for testing purposes, with support for various testnets. The `relay` contact file can be found in this repository [here](relay.xxc).
 
-While the test relay server is not online, anyone can setup their own relay server by getting RPC endpoints to desired networks with their chosen RPC service providers, and then following the instructions in this README.
+Furthermore, anyone can setup their own relay server by getting RPC endpoints to desired networks with their chosen RPC service provider(s), and then following the instructions in this README.
 
 In either scenario, once a relay server is online, the next steps show how to use the `client` to send privacy enhanced transactions with MetaMask.
 
