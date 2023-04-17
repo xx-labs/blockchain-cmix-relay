@@ -68,6 +68,13 @@ var rootCmd = &cobra.Command{
 		// Create HTTP proxy server
 		server := api.NewHttpProxy(apiInstance, port, logPrefix)
 
+		// Print supported networks
+		networks := apiInstance.Networks()
+		jww.INFO.Printf("[%s] Supported networks", logPrefix)
+		for _, net := range networks {
+			jww.INFO.Printf("[%s] http://localhost:%d%s", logPrefix, port, net)
+		}
+
 		// Start server
 		go server.Start()
 

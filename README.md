@@ -10,7 +10,7 @@ The xx labs team is working on a desktop application called `Proxxy` that makes 
 
 While this is not complete, the command line `client` application from this repository is the only way to communicate with a `relay` server.
 
-However, the xx labs teams has deployed a relay server for testing purposes, with support for various testnets. The `relay` contact file can be found in this repository [here](relay.xxc).
+The xx labs teams has deployed a relay server for testing purposes, with support for various testnets. The `relay` contact file can be found in this repository [here](relay.xxc).
 
 Furthermore, anyone can setup their own relay server by getting RPC endpoints to desired networks with their chosen RPC service provider(s), and then following the instructions in this README.
 
@@ -116,6 +116,25 @@ To run the client (in background):
 The default log file is `client.log` and relevant logs have the prefix `[RELAY]`. Watch the logs with
 ```sh
 tail -F client.log | grep "RELAY"
+```
+
+Upon startup, the `client` will connect to the cMix network and wait for this connection to be healthy. Then it will contact the `relay` server and request its supported networks. These can be found in the logs, for example:
+```sh
+> ./client -p 1234 & ; tail -F client.log | grep "RELAY"
+
+INFO 2023/04/16 20:51:58 [RELAY] Loading state at state
+INFO 2023/04/16 20:52:01 [RELAY] Started cMix Client
+INFO 2023/04/16 20:52:01 [RELAY] Sending cMix request with content:
+INFO 2023/04/16 20:52:13 [RELAY] Supported networks
+INFO 2023/04/16 20:52:13 [RELAY] http://localhost:9296/ethereum/goerli
+INFO 2023/04/16 20:52:13 [RELAY] http://localhost:9296/ethereum/sepolia
+INFO 2023/04/16 20:52:13 [RELAY] http://localhost:9296/avalanche/fuji/c
+INFO 2023/04/16 20:52:13 [RELAY] http://localhost:9296/polygon/mumbai
+INFO 2023/04/16 20:52:13 [RELAY] http://localhost:9296/fantom/testnet
+INFO 2023/04/16 20:52:13 [RELAY] http://localhost:9296/aurora/testnet
+INFO 2023/04/16 20:52:13 [RELAY] http://localhost:9296/celo/alfajores
+INFO 2023/04/16 20:52:13 [RELAY] http://localhost:9296/custom
+INFO 2023/04/16 20:52:13 [RELAY] Starting HTTP server on port: 9296
 ```
 
 To see all configuration flags
