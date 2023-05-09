@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"time"
 
 	jww "github.com/spf13/jwalterweatherman"
 	"gitlab.com/elixxir/client/v4/restlike"
@@ -16,6 +17,7 @@ func doQuery(endpoints []string, data []byte) ([]byte, int, error) {
 	// Get endpoint
 	endpoint := endpoints[0]
 	if len(endpoints) > 1 {
+		rand.Seed(time.Now().UnixNano())
 		endpoint = endpoints[rand.Intn(len(endpoints))]
 	}
 

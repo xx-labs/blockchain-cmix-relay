@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/xx-labs/blockchain-cmix-relay/client/api"
-	"gitlab.com/elixxir/crypto/contact"
 )
 
 // Cmix state config variables are global and don't change
@@ -54,16 +53,17 @@ var rootCmd = &cobra.Command{
 			NdfUrl:        ndfUrl,
 			StatePath:     statePath,
 			StatePassword: statePassword,
-			ContactFile:   contactFile,
-			Contact:       contact.Contact{},
+			ServerContacts: []api.ServerInfo{
+				{
+					ContactFile: contactFile,
+					Name:        "testnets",
+				},
+			},
 		}
 		apiInstance := api.NewApi(config)
 
 		// Connect API
-		err := apiInstance.Connect()
-		if err != nil {
-			jww.FATAL.Panicf("[%s] Couldn't connect API", logPrefix)
-		}
+		apiInstance.Connect()
 
 		// Create HTTP proxy server
 		server := api.NewHttpProxy(apiInstance, port, logPrefix)

@@ -1,29 +1,25 @@
 package api
 
 import (
-	"encoding/binary"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"strings"
+	"sync"
+	"time"
 
 	jww "github.com/spf13/jwalterweatherman"
 	"gitlab.com/elixxir/client/v4/restlike"
-	"gitlab.com/elixxir/crypto/contact"
 )
 
 // ---------------------------- //
 // Api wraps the cMix Client
 // and performs requests
-// to a Relay Server with the
-// specified contact info
+// to multiple Relay Servers
 type Api struct {
-	client            *client
-	serverContact     contact.Contact
-	networks          []string
-	supportedNetworks map[string]struct{}
-	logPrefix         string
-	retries           int
+	client    *client
+	logPrefix string
+	retries   int
+	relayers  map[string]*Relay
+	active    map[string]bool
+	mux       sync.RWMutex
 }
 
 // Configuration variables for the Api
@@ -40,13 +36,13 @@ type Config struct {
 	StatePath     string
 	StatePassword string
 
-	// Server contact
-	// Either the filepath needs to be passed
-	// to the API
+	// Server contact files
+	ServerContacts []ServerInfo
+}
+
+type ServerInfo struct {
 	ContactFile string
-	// or the contact information
-	// (if caller uses LoadContactFile before)
-	Contact contact.Contact
+	Name        string
 }
 
 // ---------------------------- //
@@ -57,23 +53,24 @@ type Config struct {
 // Panics on failure to open and parse
 // contact data
 func NewApi(c Config) *Api {
-	var serverContact contact.Contact
-	if c.ContactFile != "" {
-		serverContact = LoadContactFile(c.ContactFile)
-	} else {
-		serverContact = c.Contact
-	}
-
 	// Create cMix client
 	client := newClient(c)
 
+	// Create relay servers
+	relayers := make(map[string]*Relay, len(c.ServerContacts))
+	active := make(map[string]bool, len(c.ServerContacts))
+	for _, contactInfo := range c.ServerContacts {
+		contact := LoadContactFile(contactInfo.ContactFile)
+		relayers[contactInfo.Name] = NewRelay(contactInfo.Name, client, contact, c.LogPrefix, c.Retries)
+		active[contactInfo.Name] = false
+	}
+
 	return &Api{
-		client:            client,
-		serverContact:     serverContact,
-		networks:          nil,
-		supportedNetworks: nil,
-		logPrefix:         c.LogPrefix,
-		retries:           c.Retries,
+		client:    client,
+		logPrefix: c.LogPrefix,
+		retries:   c.Retries,
+		relayers:  relayers,
+		active:    active,
 	}
 }
 
@@ -84,30 +81,23 @@ func NewApi(c Config) *Api {
 // Returns an error if it can't connect
 // to the server over cMix and get
 // supported networks
-func (a *Api) Connect() error {
+func (a *Api) Connect() {
 	// Start cMix client
 	a.client.start()
 
-	// Get supported networks from server
-	resp, _, err := a.doRequest(restlike.Get, "/networks", nil)
-	if err != nil {
-		errMsg := fmt.Sprintf("Couldn't get supported networks: %v", err)
-		jww.ERROR.Printf("[%s] %v", a.logPrefix, errMsg)
-		return errors.New(errMsg)
-	}
-	err = json.Unmarshal(resp, &a.networks)
-	if err != nil {
-		errMsg := fmt.Sprintf("Couldn't get supported networks: %v", err)
-		jww.ERROR.Printf("[%s] %v", a.logPrefix, errMsg)
-		return errors.New(errMsg)
+	// Start relayers
+	for _, relayer := range a.relayers {
+		relayer.Start(a.updateRelayers)
 	}
 
-	// Build map of supported networks for fast lookup
-	a.supportedNetworks = make(map[string]struct{})
-	for _, n := range a.networks {
-		a.supportedNetworks[n] = struct{}{}
+	// Wait until at least one relayer is active
+	for {
+		relayers := a.activeRelayers()
+		if len(relayers) > 0 {
+			return
+		}
+		time.Sleep(1 * time.Second)
 	}
-	return nil
 }
 
 // ---------------------------- //
@@ -115,23 +105,47 @@ func (a *Api) Connect() error {
 // Stops cMix client
 // Clears supported networks
 func (a *Api) Disconnect() {
+	// Mark all relayers as not active to prevent new requests
+	a.mux.Lock()
+	for name := range a.active {
+		a.active[name] = false
+	}
+	a.mux.Unlock()
+
+	// Stop relayers
+	wg := sync.WaitGroup{}
+	for _, relayer := range a.relayers {
+		wg.Add(1)
+		go func(r *Relay) {
+			r.Stop()
+			wg.Done()
+		}(relayer)
+	}
+	wg.Wait()
+
 	// Stop cMix Client
 	a.client.stop()
-
-	// Clear supported networks
-	a.networks = nil
-	for k := range a.supportedNetworks {
-		delete(a.supportedNetworks, k)
-	}
-	a.supportedNetworks = nil
 }
 
 // ---------------------------- //
 // Return list of supported networks
-// NOTE: this list is loaded from the server
+// NOTE: this list is loaded from each relay server
 // on Api.Connect()
 func (a *Api) Networks() []string {
-	return a.networks
+	a.mux.RLock()
+	defer a.mux.RUnlock()
+	networks := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, r := range a.relayers {
+		nets := r.Networks()
+		for _, net := range nets {
+			if _, ok := seen[net]; !ok {
+				networks = append(networks, net)
+				seen[net] = struct{}{}
+			}
+		}
+	}
+	return networks
 }
 
 // ---------------------------- //
@@ -145,6 +159,25 @@ func (a *Api) Request(network string, data []byte) ([]byte, int, error) {
 // ---------------------------- //
 // Internal functions
 // ---------------------------- //
+
+// callback to update active relayers
+func (a *Api) updateRelayers(name string, active bool) {
+	a.mux.Lock()
+	defer a.mux.Unlock()
+	a.active[name] = active
+}
+
+func (a *Api) activeRelayers() []*Relay {
+	a.mux.RLock()
+	defer a.mux.RUnlock()
+	relayers := make([]*Relay, 0)
+	for name, active := range a.active {
+		if active {
+			relayers = append(relayers, a.relayers[name])
+		}
+	}
+	return relayers
+}
 
 // do a request over cMix
 func (a *Api) doRequest(
@@ -164,9 +197,22 @@ func (a *Api) doRequest(
 		uri = "/custom"
 	}
 
+	// Get active relayers
+	relayers := a.activeRelayers()
+
+	if len(relayers) == 0 {
+		jww.ERROR.Printf("[%s] No active relayers!", a.logPrefix)
+		return nil, 500, errors.New("relayers not active")
+	}
+
 	// Make sure the network is supported
-	// (except for when getting supported networks)
-	if _, ok := a.supportedNetworks[uri]; !ok && uri != "/networks" {
+	useRelayers := make([]*Relay, 0)
+	for _, r := range relayers {
+		if r.SupportsNetwork(uri) {
+			useRelayers = append(useRelayers, r)
+		}
+	}
+	if len(useRelayers) == 0 {
 		jww.ERROR.Printf("[%s] Network %v is not supported", a.logPrefix, uri)
 		return nil, 400, errors.New("unsupported network")
 	}
@@ -180,11 +226,16 @@ func (a *Api) doRequest(
 	}
 
 	// Do request over cMix
-	// Repeat for number of retries
+	// Repeat for number of retries choosing a different relay server if possible
 	tries := 1
-	response, err := a.client.request(a.serverContact, request)
+	if len(useRelayers) > 1 {
+		shuffle(useRelayers)
+	}
+	resp, code, err := useRelayers[0].Request(request)
 	for err != nil {
-		response, err = a.client.request(a.serverContact, request)
+		// Choose a different relay server
+		idx := tries % len(useRelayers)
+		resp, code, err = useRelayers[idx].Request(request)
 		tries++
 		if tries > a.retries {
 			break
@@ -197,29 +248,5 @@ func (a *Api) doRequest(
 		return nil, 500, errors.New("request exhausted number of retries")
 	}
 
-	// Parse code from headers
-	code := 500
-	if response.Headers != nil && len(response.Headers.Headers) >= 2 {
-		code = int(binary.LittleEndian.Uint16(response.Headers.Headers))
-	}
-
-	// Parse response error
-	if response.Error != "" {
-		errMsg := fmt.Sprintf("Response error: %v", response.Error)
-		jww.ERROR.Printf("[%s] %v", a.logPrefix, errMsg)
-		return nil, code, errors.New(errMsg)
-	} else {
-		return response.Content, code, nil
-	}
-}
-
-// Parse custom URI
-// Extract the endpoint URL from the URI
-func parseCustomUri(uri string) string {
-	endpoint := ""
-	parts := strings.SplitN(uri, "/", 3)
-	if len(parts) > 2 && parts[1] == "custom" {
-		endpoint = parts[2]
-	}
-	return endpoint
+	return resp, code, nil
 }
