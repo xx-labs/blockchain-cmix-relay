@@ -16,9 +16,12 @@ func LoadContactFile(file string) contact.Contact {
 	if err != nil {
 		jww.FATAL.Panicf("Failed to read server contact file: %+v", err)
 	}
+	return UnmarshalContact(contactData)
+}
 
+func UnmarshalContact(data []byte) contact.Contact {
 	// Unmarshal contact data
-	serverContact, err := contact.Unmarshal(contactData)
+	serverContact, err := contact.Unmarshal(data)
 	if err != nil {
 		jww.FATAL.Panicf("Failed to get server contact data: %+v", err)
 	}

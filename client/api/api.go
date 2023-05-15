@@ -7,6 +7,7 @@ import (
 
 	jww "github.com/spf13/jwalterweatherman"
 	"gitlab.com/elixxir/client/v4/restlike"
+	"gitlab.com/elixxir/crypto/contact"
 )
 
 // ---------------------------- //
@@ -42,6 +43,7 @@ type Config struct {
 
 type ServerInfo struct {
 	ContactFile string
+	Contact     contact.Contact
 	Name        string
 }
 
@@ -60,7 +62,11 @@ func NewApi(c Config) *Api {
 	relayers := make(map[string]*Relay, len(c.ServerContacts))
 	active := make(map[string]bool, len(c.ServerContacts))
 	for _, contactInfo := range c.ServerContacts {
-		contact := LoadContactFile(contactInfo.ContactFile)
+		contact := contactInfo.Contact
+		// If contact file is provided load the contact from it instead
+		if contactInfo.ContactFile != "" {
+			contact = LoadContactFile(contactInfo.ContactFile)
+		}
 		relayers[contactInfo.Name] = NewRelay(contactInfo.Name, client, contact, c.LogPrefix, c.Retries)
 		active[contactInfo.Name] = false
 	}
