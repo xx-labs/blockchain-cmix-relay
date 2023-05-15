@@ -22,7 +22,7 @@ var ndfUrl string
 var cert string
 
 // Server contact file
-var contactFile string
+var contactFiles []string
 
 // Logging flags
 var logLevel uint // 0 = info, 1 = debug, >1 = trace
@@ -45,20 +45,24 @@ var rootCmd = &cobra.Command{
 		// Initialize logging
 		initLog()
 
+		// Relay servers
+		serverContacts := make([]api.ServerInfo, len(contactFiles))
+		for i, contactFile := range contactFiles {
+			serverContacts[i] = api.ServerInfo{
+				ContactFile: contactFile,
+				Name:        fmt.Sprintf("relay-%d", i),
+			}
+		}
+
 		// Create API
 		config := api.Config{
-			LogPrefix:     logPrefix,
-			Retries:       retries,
-			Cert:          cert,
-			NdfUrl:        ndfUrl,
-			StatePath:     statePath,
-			StatePassword: statePassword,
-			ServerContacts: []api.ServerInfo{
-				{
-					ContactFile: contactFile,
-					Name:        "testnets",
-				},
-			},
+			LogPrefix:      logPrefix,
+			Retries:        retries,
+			Cert:           cert,
+			NdfUrl:         ndfUrl,
+			StatePath:      statePath,
+			StatePassword:  statePassword,
+			ServerContacts: serverContacts,
 		}
 		apiInstance := api.NewApi(config)
 
@@ -123,7 +127,7 @@ func init() {
 	)
 
 	// Contact file
-	rootCmd.Flags().StringVarP(&contactFile, "contactFile", "c", "relay.xxc", "Path to file containing the REST server contact info")
+	rootCmd.Flags().StringArrayVarP(&contactFiles, "contactFiles", "c", []string{"relay.xxc"}, "List of paths to files containing the REST server contact info")
 	// Retries
 	rootCmd.Flags().IntVarP(&retries, "retries", "n", 3, "How many times to retry sending request over cMix")
 	// Port
