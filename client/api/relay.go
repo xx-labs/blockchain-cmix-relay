@@ -114,6 +114,12 @@ func (r *Relay) requestNetworks() {
 	tries := 1
 	resp, _, err := r.Request(req)
 	for err != nil {
+		// Check if stop was called and exit right away
+		select {
+		case <-r.stopChan:
+			return
+		default:
+		}
 		tries++
 		resp, _, err = r.Request(req)
 		if tries >= r.retries {
