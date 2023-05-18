@@ -127,10 +127,12 @@ func (a *Api) Disconnect() {
 			wg.Done()
 		}(relayer)
 	}
-	wg.Wait()
 
 	// Stop cMix Client
 	a.client.stop()
+
+	// Wait for relayers to stop
+	wg.Wait()
 }
 
 // ---------------------------- //
@@ -190,7 +192,7 @@ func (a *Api) doRequest(
 	method restlike.Method,
 	uri string,
 	data []byte,
-) ([]byte, int, error) {
+) (resp []byte, code int, err error) {
 	// Parse URI
 	endpoint := parseCustomUri(uri)
 	var headers []byte = nil
@@ -233,16 +235,16 @@ func (a *Api) doRequest(
 
 	// Do request over cMix
 	// Repeat for number of retries choosing a different relay server if possible
-	tries := 1
+	tries := 0
 	if len(useRelayers) > 1 {
 		shuffle(useRelayers)
 	}
-	resp, code, err := useRelayers[0].Request(request)
+	err = errors.New("dummy")
 	for err != nil {
-		tries++
 		// Choose a different relay server
-		idx := (tries - 1) % len(useRelayers)
+		idx := tries % len(useRelayers)
 		resp, code, err = useRelayers[idx].Request(request)
+		tries++
 		if tries >= a.retries {
 			break
 		}

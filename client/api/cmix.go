@@ -158,7 +158,7 @@ type Request struct {
 
 // ---------------------------- //
 // Send a single-use REST request to a given contact
-func (c *client) request(contact contact.Contact, req Request) (*restlike.Message, error) {
+func (c *client) request(name string, contact contact.Contact, req Request) (*restlike.Message, error) {
 	// Build request
 	request := restSingle.Request{
 		Net:    c.user.GetCmix(),
@@ -167,7 +167,7 @@ func (c *client) request(contact contact.Contact, req Request) (*restlike.Messag
 	}
 
 	// Send request and wait for response
-	jww.INFO.Printf("[%s] Sending cMix request with content: %v", c.logPrefix, string(req.data))
+	jww.INFO.Printf("[%s] Sending request over cMix to %s", c.logPrefix, name)
 	response, err := request.Request(contact,
 		req.method, restlike.URI(req.uri), req.data, &restlike.Headers{Headers: req.headers},
 		single.GetDefaultRequestParams(),

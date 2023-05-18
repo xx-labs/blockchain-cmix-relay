@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
@@ -94,6 +95,8 @@ var rootCmd = &cobra.Command{
 
 		// Disconnect API
 		apiInstance.Disconnect()
+
+		time.Sleep(2 * time.Second)
 	},
 }
 

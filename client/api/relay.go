@@ -27,6 +27,7 @@ type Relay struct {
 	supportedNetworks map[string]struct{}
 	mux               sync.RWMutex
 
+	stopping bool
 	stopChan chan struct{}
 	cb       func(string, bool)
 }
@@ -43,6 +44,7 @@ func NewRelay(name string, client *client, contact contact.Contact, logPrefix st
 
 func (r *Relay) Start(cb func(string, bool)) {
 	r.cb = cb
+	r.stopping = false
 	// Long running task to track relay server
 	r.stopChan = make(chan struct{})
 	go r.run()
@@ -63,12 +65,13 @@ func (r *Relay) SupportsNetwork(network string) bool {
 
 func (r *Relay) Stop() {
 	// Stop the long running task
+	r.stopping = true
 	r.stopChan <- struct{}{}
 	close(r.stopChan)
 }
 
 func (r *Relay) Request(req Request) ([]byte, int, error) {
-	response, err := r.client.request(r.contact, req)
+	response, err := r.client.request(r.name, r.contact, req)
 	if err != nil {
 		jww.ERROR.Printf("[%s] Error sending request to relay server %s: %v", r.logPrefix, r.name, err)
 		return nil, 500, err
@@ -93,6 +96,10 @@ func (r *Relay) Request(req Request) ([]byte, int, error) {
 func (r *Relay) run() {
 	ticker := time.NewTicker(60 * time.Second)
 	r.requestNetworks()
+	// Exit early if stop was called
+	if r.stopping {
+		return
+	}
 	for {
 		select {
 		case <-r.stopChan:
@@ -111,8 +118,9 @@ func (r *Relay) requestNetworks() {
 		data:    nil,
 		headers: nil,
 	}
-	tries := 1
-	resp, _, err := r.Request(req)
+	tries := 0
+	var resp []byte
+	var err error = errors.New("dummy")
 	for err != nil {
 		// Check if stop was called and exit right away
 		select {
@@ -120,17 +128,15 @@ func (r *Relay) requestNetworks() {
 			return
 		default:
 		}
-		tries++
 		resp, _, err = r.Request(req)
+		tries++
 		if tries >= r.retries {
 			break
 		}
 	}
-	// Check if stop was called and exit right away
-	select {
-	case <-r.stopChan:
+	// Exit early if stop was called
+	if r.stopping {
 		return
-	default:
 	}
 	// Couldn't get response, notify callback that relay server is down
 	if err != nil {
