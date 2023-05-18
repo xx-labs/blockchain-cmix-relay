@@ -239,11 +239,11 @@ func (a *Api) doRequest(
 	}
 	resp, code, err := useRelayers[0].Request(request)
 	for err != nil {
-		// Choose a different relay server
-		idx := tries % len(useRelayers)
-		resp, code, err = useRelayers[idx].Request(request)
 		tries++
-		if tries > a.retries {
+		// Choose a different relay server
+		idx := (tries - 1) % len(useRelayers)
+		resp, code, err = useRelayers[idx].Request(request)
+		if tries >= a.retries {
 			break
 		}
 	}

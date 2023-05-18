@@ -114,9 +114,9 @@ func (r *Relay) requestNetworks() {
 	tries := 1
 	resp, _, err := r.Request(req)
 	for err != nil {
-		resp, _, err = r.Request(req)
 		tries++
-		if tries > r.retries {
+		resp, _, err = r.Request(req)
+		if tries >= r.retries {
 			break
 		}
 	}
