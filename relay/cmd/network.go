@@ -22,6 +22,7 @@ import (
 type Network struct {
 	uri       string
 	endpoints []string
+	metrics   *Metrics
 }
 
 // Configuration for a single network
@@ -33,9 +34,14 @@ type NetworkConfig struct {
 // ---------------------------- //
 // Constructor
 func NewNetwork(uri string, endpoints []string) *Network {
+	kind := MetricsKindGeneric
+	if uri == "/custom" {
+		kind = MetricsKindCustom
+	}
 	return &Network{
-		uri,
-		endpoints,
+		uri:       uri,
+		endpoints: endpoints,
+		metrics:   NewMetrics(uri, kind),
 	}
 }
 
@@ -47,7 +53,8 @@ func NewNetwork(uri string, endpoints []string) *Network {
 // which is then sent back to the client over the cMix network
 func (n *Network) Callback(request *restlike.Message) *restlike.Message {
 	jww.INFO.Printf("[%s %s] Request received over cMix: %v", logPrefix, n.uri, request)
-	if n.uri != "custom" && request.Uri != n.uri {
+	n.metrics.IncTotal()
+	if request.Uri != n.uri {
 		jww.WARN.Printf("[%s %s] Received URI (%v) doesn't match for this query!", logPrefix, n.uri, request.Uri)
 	}
 
@@ -64,18 +71,21 @@ func (n *Network) Callback(request *restlike.Message) *restlike.Message {
 	if len(request.Content) == 0 {
 		jww.WARN.Printf("[%s %s] Got empty request", logPrefix, n.uri)
 		response.Error = "Request content cannot be empty"
+		n.metrics.IncFailedEmpty()
 	} else {
 		// If this is custom URI get the endpoint from request headers
-		if n.uri == "custom" {
+		if n.uri == "/custom" {
 			endpoint := getEndpointFromHeaders(request.Headers)
 			if endpoint == "" {
 				jww.WARN.Printf("[%s %s] Couldn't get a valid endpoint URL from request Headers: %v", logPrefix, n.uri, request.Headers)
 				response.Error = "Request doesn't have a valid custom endpoint URL in request Headers"
+				n.metrics.IncFailedInvalidUrl()
 			} else {
 				// Test endpoint connection
 				if !testConnectJsonRpc(endpoint) {
 					jww.WARN.Printf("[%s %s] Couldn't connect to custom endpoint URL", logPrefix, n.uri)
 					response.Error = "Provided custom endpoint URL is unreachable"
+					n.metrics.IncFailedUnreachableUrl()
 				} else {
 					endpoints = []string{endpoint}
 				}
@@ -92,6 +102,7 @@ func (n *Network) Callback(request *restlike.Message) *restlike.Message {
 			errMsg := fmt.Sprintf("Error in JSON-RPC query: %v", err)
 			jww.WARN.Printf("[%s %s] %s", logPrefix, n.uri, errMsg)
 			response.Error = errMsg
+			n.metrics.IncFailedRpc()
 		} else {
 			response.Content = data
 			jww.INFO.Printf("[%s %s] Code (%v), Response: %v", logPrefix, n.uri, code, string(data))
@@ -99,5 +110,6 @@ func (n *Network) Callback(request *restlike.Message) *restlike.Message {
 	}
 	// Place response code in headers
 	binary.LittleEndian.PutUint16(response.Headers.Headers, uint16(code))
+	n.metrics.IncSuccessful()
 	return response
 }

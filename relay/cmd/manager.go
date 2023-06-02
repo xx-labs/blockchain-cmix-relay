@@ -13,6 +13,7 @@ type Manager struct {
 	uri       string
 	networks  []*Network
 	endpoints *restlike.Endpoints
+	metrics   *Metrics
 }
 
 // ---------------------------- //
@@ -29,6 +30,7 @@ func NewManager(
 	m := &Manager{
 		uri:       "/networks",
 		endpoints: endpoints,
+		metrics:   NewMetrics("/networks", MetricsKindNetworks),
 	}
 	// Initialize networks
 	m.initNetworks(networks)
@@ -65,6 +67,7 @@ func (m *Manager) Reload(networks map[string][]NetworkConfig) {
 // This function returns a list of the supported networks
 func (m *Manager) Callback(request *restlike.Message) *restlike.Message {
 	jww.INFO.Printf("[%s %s] Request received over cMix: %v", logPrefix, m.uri, request)
+	m.metrics.IncTotal()
 	if request.Uri != m.uri {
 		jww.WARN.Printf("[%s %s] Received URI (%v) doesn't match for this query!", logPrefix, m.uri, request.Uri)
 	}
@@ -85,9 +88,11 @@ func (m *Manager) Callback(request *restlike.Message) *restlike.Message {
 	if err != nil {
 		jww.ERROR.Printf("[%s %s] Error marshalling JSON data: %v", logPrefix, m.uri, err)
 		response.Error = "Internal server error"
+		m.metrics.IncFailedGeneric()
 	} else {
 		jww.INFO.Printf("[%s %s] Response: %v", logPrefix, m.uri, string(data))
 		response.Content = data
+		m.metrics.IncSuccessful()
 	}
 	return response
 }

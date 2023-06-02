@@ -30,6 +30,9 @@ var logLevel uint // 0 = info, 1 = debug, >1 = trace
 var logPath string
 var logPrefix string
 
+// Metrics
+var metricsPort int
+
 // Network manager is global because it can be reloaded
 var manager *Manager
 
@@ -55,6 +58,12 @@ var rootCmd = &cobra.Command{
 		// Start REST server
 		server.Start()
 
+		// Setup metrics
+		metrics := NewMetricsServer(metricsPort)
+
+		// Start metrics server
+		go metrics.Start()
+
 		// Set up channel on which to send signal notifications.
 		// We must use a buffered channel or risk missing the signal
 		// if we're not ready to receive when the signal is sent.
@@ -66,6 +75,9 @@ var rootCmd = &cobra.Command{
 
 		// Stop REST server
 		server.Stop()
+
+		// Stop metrics server
+		metrics.Stop()
 	},
 }
 
@@ -97,6 +109,9 @@ func init() {
 	rootCmd.PersistentFlags().UintVarP(&logLevel, "logLevel", "l", 0, "Level of debugging to print (0 = info, 1 = debug, >1 = trace).")
 	rootCmd.PersistentFlags().StringVarP(&logPath, "logFile", "f", "relay.log", "Path to log file")
 	rootCmd.Flags().StringVarP(&logPrefix, "logPrefix", "", "RELAY", "Logging prefix")
+
+	// Metrics
+	rootCmd.PersistentFlags().IntVarP(&metricsPort, "metricsPort", "m", 9296, "Port for metrics server")
 }
 
 // initLog initializes logging thresholds and the log path.
