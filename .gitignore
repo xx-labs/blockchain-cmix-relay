@@ -1,7 +1,8 @@
 # Ignore state, logs and contact files
 **/state
 **/*.log
-**/*.xxc
+blockchain/**/*xxc
+http/**/*xxc
 
 # Config file
 blockchain/relay/networks.json
