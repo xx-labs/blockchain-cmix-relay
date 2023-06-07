@@ -1,4 +1,4 @@
-package cmd
+package cmix
 
 import (
 	"os"
@@ -16,6 +16,7 @@ import (
 type Server struct {
 	restServer *single.Server
 	user       *xxdk.E2e
+	logPrefix  string
 }
 
 // ---------------------------- //
@@ -24,44 +25,45 @@ type Server struct {
 // Initialize a new cMix Server
 // This function initializes the state from the configured path
 // and writes the contact information to the provided filepath
-func InitializeServer() {
+func InitializeServer(c Config, outputFile string) {
 	// Create Server
-	newServer(true)
+	newServer(c, outputFile)
 }
 
 // Load a cMix RestLike Server
 // The function attempts to load server state from the configured path
 // It panics if the state directory doesn't exist
-func LoadServer() *Server {
+func LoadServer(c Config) *Server {
 	// Create Server
-	net, identity := newServer(false)
+	net, identity := newServer(c, "")
 
 	// Create an E2E client
 	params := xxdk.GetDefaultE2EParams()
 	user, err := xxdk.Login(net, xxdk.DefaultAuthCallbacks{}, identity, params)
 	if err != nil {
-		jww.FATAL.Panicf("[%s] Unable to Login: %+v", logPrefix, err)
+		jww.FATAL.Panicf("[%s] Unable to Login: %+v", c.LogPrefix, err)
 	}
 
 	// Pull the reception identity information
 	dhKeyPrivateKey, err := identity.GetDHKeyPrivate()
 	if err != nil {
-		jww.FATAL.Panicf("[%s] Failed to get DH private key from identity: %+v", logPrefix, err)
+		jww.FATAL.Panicf("[%s] Failed to get DH private key from identity: %+v", c.LogPrefix, err)
 	}
 
 	// Get the group
 	grp, err := identity.GetGroup()
 	if err != nil {
-		jww.FATAL.Panicf("[%s] Failed to get group from identity: %+v", logPrefix, err)
+		jww.FATAL.Panicf("[%s] Failed to get group from identity: %+v", c.LogPrefix, err)
 	}
 
 	// Initialize the server
 	restServer := single.NewServer(identity.ID, dhKeyPrivateKey, grp, user.GetCmix())
-	jww.INFO.Printf("[%s] Initialized single use REST Server", logPrefix)
+	jww.INFO.Printf("[%s] Initialized single use REST Server", c.LogPrefix)
 
 	return &Server{
 		restServer,
 		user,
+		c.LogPrefix,
 	}
 }
 
@@ -80,7 +82,7 @@ func (s *Server) Start() {
 	networkFollowerTimeout := 5 * time.Second
 	err := s.user.StartNetworkFollower(networkFollowerTimeout)
 	if err != nil {
-		jww.FATAL.Panicf("[%s] Failed to start cMix network follower: %+v", logPrefix, err)
+		jww.FATAL.Panicf("[%s] Failed to start cMix network follower: %+v", s.logPrefix, err)
 	}
 
 	// Create a tracker channel to be notified of network changes
@@ -100,10 +102,10 @@ func (s *Server) Start() {
 		select {
 		case isConnected = <-connected:
 		case <-timeoutTimer.C:
-			jww.FATAL.Panicf("[%s] Timeout on starting REST Server", logPrefix)
+			jww.FATAL.Panicf("[%s] Timeout on starting REST Server", s.logPrefix)
 		}
 	}
-	jww.INFO.Printf("[%s] Started REST Server", logPrefix)
+	jww.INFO.Printf("[%s] Started REST Server", s.logPrefix)
 }
 
 // ---------------------------- //
@@ -112,56 +114,58 @@ func (s *Server) Stop() {
 	// Stop cMix network follower
 	err := s.user.StopNetworkFollower()
 	if err != nil {
-		jww.ERROR.Printf("[%s] Failed to stop cMix network follower: %+v", logPrefix, err)
+		jww.ERROR.Printf("[%s] Failed to stop cMix network follower: %+v", s.logPrefix, err)
 	} else {
-		jww.INFO.Printf("[%s] Stopped cMix network follower", logPrefix)
+		jww.INFO.Printf("[%s] Stopped cMix network follower", s.logPrefix)
 	}
 
 	// Close REST server
 	s.restServer.Close()
-	jww.INFO.Printf("[%s] Stopped REST Server", logPrefix)
+	jww.INFO.Printf("[%s] Stopped REST Server", s.logPrefix)
 }
 
 // ---------------------------- //
 // Internal functions
 // ---------------------------- //
 
-func newServer(initialize bool) (*xxdk.Cmix, xxdk.ReceptionIdentity) {
+func newServer(c Config, outputFile string) (*xxdk.Cmix, xxdk.ReceptionIdentity) {
 	// Initialize state if requested
 	// Overwrites existing state if found at provided path
-	_, err := os.Stat(statePath)
+	_, err := os.Stat(c.StatePath)
+	// If an ouput file is provided, initialize the state
+	initialize := outputFile != ""
 	if initialize {
 		if err == nil {
-			jww.INFO.Printf("[%s] Removing existing state at %v", logPrefix, statePath)
-			err = os.RemoveAll(statePath)
+			jww.INFO.Printf("[%s] Removing existing state at %v", c.LogPrefix, c.StatePath)
+			err = os.RemoveAll(c.StatePath)
 			if err != nil {
-				jww.FATAL.Panicf("[%s] Error removing existing state at %v", logPrefix, statePath)
+				jww.FATAL.Panicf("[%s] Error removing existing state at %v", c.LogPrefix, c.StatePath)
 			}
 		}
-		jww.INFO.Printf("[%s] Initializing state at %v", logPrefix, statePath)
+		jww.INFO.Printf("[%s] Initializing state at %v", c.LogPrefix, c.StatePath)
 		// Retrieve NDF
-		cert, err := os.ReadFile(cert)
+		cert, err := os.ReadFile(c.Cert)
 		if err != nil {
-			jww.FATAL.Panicf("[%s] Failed to read certificate: %v", logPrefix, err)
+			jww.FATAL.Panicf("[%s] Failed to read certificate: %v", c.LogPrefix, err)
 		}
 
-		ndfJSON, err := xxdk.DownloadAndVerifySignedNdfWithUrl(ndfUrl, string(cert))
+		ndfJSON, err := xxdk.DownloadAndVerifySignedNdfWithUrl(c.NdfUrl, string(cert))
 		if err != nil {
-			jww.FATAL.Panicf("[%s] Failed to download NDF: %+v", logPrefix, err)
+			jww.FATAL.Panicf("[%s] Failed to download NDF: %+v", c.LogPrefix, err)
 		}
 
 		// Initialize the state using the state file
-		err = xxdk.NewCmix(string(ndfJSON), statePath, []byte(statePassword), "")
+		err = xxdk.NewCmix(string(ndfJSON), c.StatePath, []byte(c.StatePassword), "")
 		if err != nil {
-			jww.FATAL.Panicf("[%s] Failed to initialize state: %+v", logPrefix, err)
+			jww.FATAL.Panicf("[%s] Failed to initialize state: %+v", c.LogPrefix, err)
 		}
 	}
 
 	// Load cMix
-	net, err := xxdk.LoadCmix(statePath, []byte(statePassword),
+	net, err := xxdk.LoadCmix(c.StatePath, []byte(c.StatePassword),
 		xxdk.GetDefaultCMixParams())
 	if err != nil {
-		jww.FATAL.Panicf("[%s] Failed to load state: %+v", logPrefix, err)
+		jww.FATAL.Panicf("[%s] Failed to load state: %+v", c.LogPrefix, err)
 	}
 
 	// Get reception identity (automatically created if one does not exist)
@@ -172,14 +176,14 @@ func newServer(initialize bool) (*xxdk.Cmix, xxdk.ReceptionIdentity) {
 			// If no extant xxdk.ReceptionIdentity, generate and store a new one
 			identity, err = xxdk.MakeReceptionIdentity(net)
 			if err != nil {
-				jww.FATAL.Panicf("[%s] Failed to generate reception identity: %+v", logPrefix, err)
+				jww.FATAL.Panicf("[%s] Failed to generate reception identity: %+v", c.LogPrefix, err)
 			}
 			err = xxdk.StoreReceptionIdentity(identityStorageKey, identity, net)
 			if err != nil {
-				jww.FATAL.Panicf("[%s] Failed to store new reception identity: %+v", logPrefix, err)
+				jww.FATAL.Panicf("[%s] Failed to store new reception identity: %+v", c.LogPrefix, err)
 			}
 		} else {
-			jww.FATAL.Panicf("[%s] Failed to load reception identity: %+v", logPrefix, err)
+			jww.FATAL.Panicf("[%s] Failed to load reception identity: %+v", c.LogPrefix, err)
 		}
 	}
 
@@ -187,7 +191,7 @@ func newServer(initialize bool) (*xxdk.Cmix, xxdk.ReceptionIdentity) {
 	if initialize {
 		err = utils.WriteFileDef(outputFile, identity.GetContact().Marshal())
 		if err != nil {
-			jww.FATAL.Panicf("[%s] Failed writing contact file to %v: %+v", logPrefix, outputFile, err)
+			jww.FATAL.Panicf("[%s] Failed writing contact file to %v: %+v", c.LogPrefix, outputFile, err)
 		}
 	}
 

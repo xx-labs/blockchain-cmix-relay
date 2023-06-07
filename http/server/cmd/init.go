@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/xx-labs/blockchain-cmix-relay/cmix"
 )
 
 // Variables used in init command only
@@ -12,14 +13,23 @@ var outputFile string
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Args:  cobra.MinimumNArgs(0),
-	Short: "Initialize the REST server",
+	Short: "Initialize the cMix HTTP Proxy server",
 	Long:  `This command initializes a new cMix client, stores the state information, and outputs the contact information to a file`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Initialize logging
 		initLog()
 
+		// Config
+		config := cmix.Config{
+			LogPrefix:     logPrefix,
+			Cert:          cert,
+			NdfUrl:        ndfUrl,
+			StatePath:     statePath,
+			StatePassword: statePassword,
+		}
+
 		// Initialize REST server
-		InitializeServer()
+		cmix.InitializeServer(config, outputFile)
 	},
 }
 
@@ -33,7 +43,7 @@ func init() {
 		"Path to certificate file used to verify NDF download",
 	)
 	initCmd.Flags().StringVarP(&outputFile, "output", "o",
-		"relay.xxc",
+		"http.xxc",
 		"Path to output contact file",
 	)
 	rootCmd.AddCommand(initCmd)

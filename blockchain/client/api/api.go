@@ -2,10 +2,13 @@ package api
 
 import (
 	"errors"
+	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
 	jww "github.com/spf13/jwalterweatherman"
+	"github.com/xx-labs/blockchain-cmix-relay/cmix"
 	"gitlab.com/elixxir/client/v4/restlike"
 	"gitlab.com/elixxir/crypto/contact"
 )
@@ -15,7 +18,7 @@ import (
 // and performs requests
 // to multiple Relay Servers
 type Api struct {
-	client    *client
+	client    *cmix.Client
 	logPrefix string
 	retries   int
 	relayers  map[string]*Relay
@@ -25,17 +28,11 @@ type Api struct {
 
 // Configuration variables for the Api
 type Config struct {
-	// Logging
-	LogPrefix string
+	// Cmix Config
+	Cmix cmix.Config
 
 	// Number of retries for each request
 	Retries int
-
-	// cMix client
-	Cert          string
-	NdfUrl        string
-	StatePath     string
-	StatePassword string
 
 	// Server contact files
 	ServerContacts []ServerInfo
@@ -56,7 +53,7 @@ type ServerInfo struct {
 // contact data
 func NewApi(c Config) *Api {
 	// Create cMix client
-	client := newClient(c)
+	client := cmix.NewClient(c.Cmix)
 
 	// Create relay servers
 	relayers := make(map[string]*Relay, len(c.ServerContacts))
@@ -65,15 +62,15 @@ func NewApi(c Config) *Api {
 		contact := contactInfo.Contact
 		// If contact file is provided load the contact from it instead
 		if contactInfo.ContactFile != "" {
-			contact = LoadContactFile(contactInfo.ContactFile)
+			contact = cmix.LoadContactFile(contactInfo.ContactFile)
 		}
-		relayers[contactInfo.Name] = NewRelay(contactInfo.Name, client, contact, c.LogPrefix, c.Retries)
+		relayers[contactInfo.Name] = NewRelay(contactInfo.Name, client, contact, c.Cmix.LogPrefix, c.Retries)
 		active[contactInfo.Name] = false
 	}
 
 	return &Api{
 		client:    client,
-		logPrefix: c.LogPrefix,
+		logPrefix: c.Cmix.LogPrefix,
 		retries:   c.Retries,
 		relayers:  relayers,
 		active:    active,
@@ -89,7 +86,7 @@ func NewApi(c Config) *Api {
 // supported networks
 func (a *Api) Connect() {
 	// Start cMix client
-	a.client.start()
+	a.client.Start()
 
 	// Start relayers
 	for _, relayer := range a.relayers {
@@ -129,7 +126,7 @@ func (a *Api) Disconnect() {
 	}
 
 	// Stop cMix Client
-	a.client.stop()
+	a.client.Stop()
 
 	// Wait for relayers to stop
 	wg.Wait()
@@ -226,11 +223,11 @@ func (a *Api) doRequest(
 	}
 
 	// Build request
-	request := Request{
-		method:  method,
-		uri:     uri,
-		data:    data,
-		headers: headers,
+	request := cmix.Request{
+		Method:  method,
+		Uri:     uri,
+		Data:    data,
+		Headers: headers,
 	}
 
 	// Do request over cMix
@@ -257,4 +254,33 @@ func (a *Api) doRequest(
 	}
 
 	return resp, code, nil
+}
+
+// Parse custom URI
+// Extract the endpoint URL from the URI
+func parseCustomUri(uri string) string {
+	endpoint := ""
+	parts := strings.SplitN(uri, "/", 3)
+	if len(parts) > 2 && parts[1] == "custom" {
+		endpoint = parts[2]
+	}
+	return endpoint
+}
+
+// Shuffle slice of relayers
+func shuffle(relayers []*Relay) {
+	// Get the length of the slice
+	n := len(relayers)
+
+	// Initialize a random number generator with a seed based on the current time
+	rand.Seed(time.Now().UnixNano())
+
+	// Loop through the slice from the end to the beginning
+	for i := n - 1; i >= 1; i-- {
+		// Generate a random index j between 0 and i
+		j := rand.Intn(i + 1)
+
+		// Swap the elements at index i and j
+		relayers[i], relayers[j] = relayers[j], relayers[i]
+	}
 }

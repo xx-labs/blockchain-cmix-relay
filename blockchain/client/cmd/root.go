@@ -10,7 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
-	"github.com/xx-labs/blockchain-cmix-relay/client/api"
+	"github.com/xx-labs/blockchain-cmix-relay/blockchain/client/api"
+	"github.com/xx-labs/blockchain-cmix-relay/cmix"
 )
 
 // Cmix state config variables are global and don't change
@@ -57,12 +58,14 @@ var rootCmd = &cobra.Command{
 
 		// Create API
 		config := api.Config{
-			LogPrefix:      logPrefix,
+			Cmix: cmix.Config{
+				LogPrefix:     logPrefix,
+				Cert:          cert,
+				NdfUrl:        ndfUrl,
+				StatePath:     statePath,
+				StatePassword: statePassword,
+			},
 			Retries:        retries,
-			Cert:           cert,
-			NdfUrl:         ndfUrl,
-			StatePath:      statePath,
-			StatePassword:  statePassword,
 			ServerContacts: serverContacts,
 		}
 		apiInstance := api.NewApi(config)

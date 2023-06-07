@@ -4,8 +4,10 @@
 **/*.xxc
 
 # Config file
-relay/networks.json
+blockchain/relay/networks.json
 
 # Binaries
-client/client
-relay/relay
+blockchain/client/client
+blockchain/relay/relay
+http/client/client
+http/server/server

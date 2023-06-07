@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
+	"github.com/xx-labs/blockchain-cmix-relay/cmix"
 )
 
 // Cmix state config variables are global and don't change
@@ -46,8 +47,17 @@ var rootCmd = &cobra.Command{
 		// Initialize logging
 		initLog()
 
+		// Config
+		config := cmix.Config{
+			LogPrefix:     logPrefix,
+			Cert:          cert,
+			NdfUrl:        ndfUrl,
+			StatePath:     statePath,
+			StatePassword: statePassword,
+		}
+
 		// Load REST server
-		server := LoadServer()
+		server := cmix.LoadServer(config)
 
 		// Initialize networks configuration
 		networks := initNetworksConfig()

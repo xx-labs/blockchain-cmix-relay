@@ -1,6 +1,9 @@
 go 1.19
 
 use (
-	./client
-	./relay
+	./blockchain/client
+	./blockchain/relay
+	./cmix
+	./http/client
+	./http/server
 )

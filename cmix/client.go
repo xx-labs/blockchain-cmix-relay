@@ -1,4 +1,4 @@
-package api
+package cmix
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ import (
 
 // ---------------------------- //
 // Client holds the xxDK user info
-type client struct {
+type Client struct {
 	user      *xxdk.E2e
 	stream    *fastRNG.Stream
 	grp       *cyclic.Group
@@ -27,7 +27,7 @@ type client struct {
 
 // ---------------------------- //
 // Create a new cMix client
-func newClient(c Config) *client {
+func NewClient(c Config) *Client {
 	// Initialize xxDK state
 	// If state already exists, re-use it
 	if _, err := os.Stat(c.StatePath); errors.Is(err, fs.ErrNotExist) {
@@ -90,7 +90,7 @@ func newClient(c Config) *client {
 	}
 
 	// Create Client
-	return &client{
+	return &Client{
 		user:      user,
 		stream:    stream,
 		grp:       grp,
@@ -102,7 +102,7 @@ func newClient(c Config) *client {
 // Start the Client
 // This function starts the cMix network follower
 // then waits until the Client is connected to the network
-func (c *client) start() {
+func (c *Client) Start() {
 	// Start cMix network follower
 	networkFollowerTimeout := 5 * time.Second
 	err := c.user.StartNetworkFollower(networkFollowerTimeout)
@@ -135,7 +135,7 @@ func (c *client) start() {
 
 // ---------------------------- //
 // Stop the Client
-func (c *client) stop() {
+func (c *Client) Stop() {
 	// Stop cMix network follower
 	err := c.user.StopNetworkFollower()
 	if err != nil {
@@ -150,15 +150,15 @@ func (c *client) stop() {
 }
 
 type Request struct {
-	method  restlike.Method
-	uri     string
-	data    []byte
-	headers []byte
+	Method  restlike.Method
+	Uri     string
+	Data    []byte
+	Headers []byte
 }
 
 // ---------------------------- //
 // Send a single-use REST request to a given contact
-func (c *client) request(name string, contact contact.Contact, req Request) (*restlike.Message, error) {
+func (c *Client) Request(name string, contact contact.Contact, req Request) (*restlike.Message, error) {
 	// Build request
 	request := restSingle.Request{
 		Net:    c.user.GetCmix(),
@@ -169,7 +169,7 @@ func (c *client) request(name string, contact contact.Contact, req Request) (*re
 	// Send request and wait for response
 	jww.INFO.Printf("[%s] Sending request over cMix to %s", c.logPrefix, name)
 	response, err := request.Request(contact,
-		req.method, restlike.URI(req.uri), req.data, &restlike.Headers{Headers: req.headers},
+		req.Method, restlike.URI(req.Uri), req.Data, &restlike.Headers{Headers: req.Headers},
 		single.GetDefaultRequestParams(),
 	)
 	if err != nil {
