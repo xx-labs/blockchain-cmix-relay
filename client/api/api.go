@@ -15,7 +15,7 @@ import (
 // and performs requests
 // to multiple Relay Servers
 type Api struct {
-	client    *client
+	client    *Client
 	logPrefix string
 	retries   int
 	relayers  map[string]*Relay
@@ -56,7 +56,7 @@ type ServerInfo struct {
 // contact data
 func NewApi(c Config) *Api {
 	// Create cMix client
-	client := newClient(c)
+	client := NewClient(c)
 
 	// Create relay servers
 	relayers := make(map[string]*Relay, len(c.ServerContacts))
@@ -89,7 +89,7 @@ func NewApi(c Config) *Api {
 // supported networks
 func (a *Api) Connect() {
 	// Start cMix client
-	a.client.start()
+	a.client.Start()
 
 	// Start relayers
 	for _, relayer := range a.relayers {
@@ -129,7 +129,7 @@ func (a *Api) Disconnect() {
 	}
 
 	// Stop cMix Client
-	a.client.stop()
+	a.client.Stop()
 
 	// Wait for relayers to stop
 	wg.Wait()
@@ -227,10 +227,10 @@ func (a *Api) doRequest(
 
 	// Build request
 	request := Request{
-		method:  method,
-		uri:     uri,
-		data:    data,
-		headers: headers,
+		Method:  method,
+		Uri:     uri,
+		Data:    data,
+		Headers: headers,
 	}
 
 	// Do request over cMix

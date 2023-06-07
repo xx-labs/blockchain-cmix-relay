@@ -18,7 +18,7 @@ import (
 // about a single relay server
 type Relay struct {
 	name      string
-	client    *client
+	client    *Client
 	contact   contact.Contact
 	logPrefix string
 	retries   int
@@ -32,7 +32,7 @@ type Relay struct {
 	cb       func(string, bool)
 }
 
-func NewRelay(name string, client *client, contact contact.Contact, logPrefix string, retries int) *Relay {
+func NewRelay(name string, client *Client, contact contact.Contact, logPrefix string, retries int) *Relay {
 	return &Relay{
 		name:      name,
 		client:    client,
@@ -71,7 +71,7 @@ func (r *Relay) Stop() {
 }
 
 func (r *Relay) Request(req Request) ([]byte, int, error) {
-	response, err := r.client.request(r.name, r.contact, req)
+	response, err := r.client.Request(r.name, r.contact, req)
 	if err != nil {
 		jww.ERROR.Printf("[%s] Error sending request to relay server %s: %v", r.logPrefix, r.name, err)
 		return nil, 500, err
@@ -113,10 +113,10 @@ func (r *Relay) run() {
 func (r *Relay) requestNetworks() {
 	// Request networks
 	req := Request{
-		method:  restlike.Get,
-		uri:     "/networks",
-		data:    nil,
-		headers: nil,
+		Method:  restlike.Get,
+		Uri:     "/networks",
+		Data:    nil,
+		Headers: nil,
 	}
 	tries := 0
 	var resp []byte
