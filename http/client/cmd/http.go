@@ -352,6 +352,7 @@ func (c *Conn) process() {
 		c.mux.Lock()
 		if msg, ok := c.bufferReads[c.readCounter]; ok {
 			// Process message
+			jww.INFO.Printf("[%s] Processing %s message (id-%d) counter %d", logPrefix, msg.Command, msg.ID, msg.Counter)
 			switch msg.Command {
 			case "data":
 				// Send data to client
@@ -375,13 +376,13 @@ func (c *Conn) process() {
 func (c *Conn) read() {
 	if _, err := io.Copy(c, c.tcpConn); err != nil {
 		jww.ERROR.Printf("[%s] Error reading from %s: %v", logPrefix, c.uri, err)
+	} else {
+		jww.INFO.Printf("[%s] Connection (id-%d) closed by remote: %s", logPrefix, c.id, c.uri)
 	}
 
 	// When the TCP connection closes, we should send a close message
 	// to the server. But only when the connection was not closed by calling Stop()
 	if !c.stopped {
-		// Quit the process routine
-		c.stopped = true
 		// Build message to send to server
 		message := &Message{
 			Command: "close",
@@ -393,6 +394,11 @@ func (c *Conn) read() {
 		err := c.sendMessage(message)
 		if err != nil {
 			jww.ERROR.Printf("[%s] Error sending close message to server: %v", logPrefix, err)
+		} else {
+			// Close connection
+			jww.INFO.Printf("[%s] Closing connection (id-%d)", logPrefix, c.id)
+			c.Stop()
+			c.p.removeConn(c.id)
 		}
 	}
 }
@@ -428,7 +434,7 @@ func (c *Conn) sendMessage(msg *Message) error {
 		return err
 	}
 	// Print send report
-	jww.INFO.Printf("[%s] %s Message %s sent in RoundIDs: %+v",
-		logPrefix, msg.Command, sendReport.MessageId, sendReport.RoundList)
+	jww.INFO.Printf("[%s] %s Message %s with counter %d sent in RoundIDs: %+v",
+		logPrefix, msg.Command, sendReport.MessageId, msg.Counter, sendReport.RoundList)
 	return nil
 }
