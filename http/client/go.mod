@@ -3,8 +3,10 @@ module github.com/xx-labs/blockchain-cmix-relay/http/client
 go 1.20
 
 require (
+	github.com/rs/cors v1.8.2
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/jwalterweatherman v1.1.0
+	github.com/xx-labs/blockchain-cmix-relay/cmix v0.0.0-20230607223537-9b6b35823669
 	gitlab.com/elixxir/client/v4 v4.6.3
 	gitlab.com/elixxir/crypto v0.0.7-0.20230413162806-a99ec4bfea32
 )
@@ -27,7 +29,6 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/rs/cors v1.8.2 // indirect
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect

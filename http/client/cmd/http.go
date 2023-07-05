@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rs/cors"
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/xx-labs/blockchain-cmix-relay/cmix"
 	"gitlab.com/elixxir/client/v4/restlike"
@@ -26,9 +27,13 @@ type HttpProxy struct {
 func NewHttpProxy(c *cmix.Client, port int, contactFile, logPrefix string) *HttpProxy {
 	contact := cmix.LoadContactFile(contactFile)
 	hp := &HttpProxy{c, port, contact, logPrefix, nil}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", hp.ServeHTTP)
+	// Create a new CORS handler with desired options
+	corsHandler := cors.AllowAll().Handler(mux)
 	hp.srv = &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: hp,
+		Handler: corsHandler,
 	}
 	return hp
 }
